@@ -1,9 +1,11 @@
 from collections import Counter
 import copy
 import pdb
+from sys import exit
 
 import bananagrams_board
-import read_dictionary
+import heuristics
+from read_dictionary import read_dictionary
 import word_bank
 
 
@@ -26,16 +28,6 @@ def trim_dictionary(dictionary, letters):
                 possible_words.append(word)
 
     return possible_words
-
-
-def scrabble(word):
-    word_count = Counter(word)
-
-    ret = 0
-    for letter in word_count:
-        ret += word_count[letter] * word_bank.letter_weights[letter.upper()]
-
-    return ret
 
 
 def complete_board(word_list, prev_board, remaining_letters):
@@ -67,14 +59,15 @@ def complete_board(word_list, prev_board, remaining_letters):
                 possible_words.append((word, board_word_info[0], board_word_info[1], board_word_info[2]))
 
     # return possible_words
-    possible_words.sort(lambda x, y: cmp(scrabble(y[0]), scrabble(x[0])))
+    possible_words.sort(lambda x, y: cmp(heuristics.scrabble(y[0], word_bank), heuristics.scrabble(x[0], word_bank)))
     prev_letters = copy.deepcopy(remaining_letters)
     for word_info in possible_words:
         new_loc = compute_loc_new_word(word_info[0], word_info[1], word_info[2], word_info[3])
         print remaining_letters
         print word_info[0]
-        ok, pass_letters = curr_board.add_new_word(word_info[0], list(new_loc), word_info[3], remaining_letters)
+        ok, pass_letters = curr_board.add_new_word(word_info[0], list(new_loc), word_info[3])
         if (not curr_board.check_if_valid()) or (not ok):
+            curr_board.print_board_subsquare([135, 135], 20)
             curr_board = prev_board.__deepcopy__()
             remaining_letters = copy.deepcopy(prev_letters)
         else:
@@ -96,46 +89,28 @@ def compute_loc_new_word(new_word, base_word, base_word_loc, direction):
         return base_word_loc[0], base_word_loc[1] - idx
 
 
-dictionary = read_dictionary.read_dictionary("Dictionaries/umich_dictionary_anagram.txt")
+# set up variables
+dictionary = read_dictionary("Dictionaries/umich_dictionary_anagram.txt")
 master_wb = word_bank.WordBank()
-curr_board = bananagrams_board.BananaGramsBoard(dictionary)
-all_letters = "".join(sorted(master_wb.get_n_letters(35)))
+all_letters = "".join(sorted(master_wb.get_n_letters(15)))
 curr_letters = copy.deepcopy(all_letters)
-# curr_letters = "EGILMNQRRRTTUWX"
+#curr_letters = "AADEEEHHIMNNTWW"
+curr_board = bananagrams_board.BananaGramsBoard(dictionary, Counter(curr_letters))
 
-## DO IT
+# DO IT
 print curr_letters
 initial_possible_words = trim_dictionary(dictionary, curr_letters)
 scrabble_words = copy.deepcopy(initial_possible_words)
-scrabble_words.sort(lambda x, y: cmp(scrabble(y), scrabble(x)))
+scrabble_words.sort(lambda x, y: cmp(heuristics.scrabble(y, word_bank), heuristics.scrabble(x, word_bank)))
 print scrabble_words[0]
 print "Number of workable words:", len(initial_possible_words)
 
 for base_word in scrabble_words:
-    ok, curr_letters = curr_board.add_new_word(scrabble_words[0], [143, (288 - len(scrabble_words[0])) / 2], 'h',
-                                           curr_letters)
+    ok, curr_letters = curr_board.add_new_word(scrabble_words[0], [143, (288 - len(scrabble_words[0])) / 2], 'h')
     complete, curr_board = complete_board(scrabble_words, curr_board, curr_letters)
     if complete:
-        curr_board.print_board_subsquare([130, 130], 25)
-        break
+        curr_board.print_board_subsquare([130, 130], 35)
+        print "~Complete Board Found~"
+        exit()
 
-# # Debugging - Confirm that check_if_valid works -- it does
-# print curr_board.load_board_from_file("TestBoards/test1.txt")
-# curr_board.print_board_subsquare((0, 0), 20)
-#
-# print curr_board.load_board_from_file("TestBoards/test2.txt")
-# curr_board.print_board_subsquare((0,0), 20)
-#
-# print curr_board.load_board_from_file("TestBoards/test3.txt")
-# curr_board.print_board_subsquare((0, 0), 20)
-# print curr_board.check_if_valid()
-#
-# curr_board.load_board_from_file("TestBoards/test4.txt")
-# curr_board.print_board_subsquare((0, 0), 20)
-# print curr_board.add_new_word("duck", [0, 0], 'h', "UK")
-# curr_board.print_board_subsquare((0, 0), 20)
-#
-# curr_board.load_board_from_file("TestBoards/test5.txt")
-# curr_board.print_board_subsquare((0, 0), 20)
-# print curr_board.add_new_word("duck", [0, 0], 'h', "UK")
-# curr_board.print_board_subsquare((0, 0), 20)
+print "~No Complete Board Found~"
